@@ -1,13 +1,10 @@
 import math
 from tkinter import *
 
-import matplotlib.pyplot
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
-NavigationToolbar2Tk)
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from ctypes import windll
-
 windll.shcore.SetProcessDpiAwareness(1)
 
 
@@ -75,7 +72,13 @@ class Data:
 class GUI:
     def __init__(self):
         self.root = Tk()
-        self.root.geometry("1420x720")
+        self.root.title("Oscylator harmoniczny")
+        self.root.geometry("1390x750")
+
+        self.create_menubar()
+        self.root.config(menu=self.menubar)
+
+        self.is_plot_printed = False
 
         self.frame_entry = LabelFrame(self.root, text="Parametryzacja")
         self.frame_plots = LabelFrame(self.root, text="Wykresy")
@@ -93,7 +96,7 @@ class GUI:
         # Beta
         self.entry_b = Entry(self.frame_entry, width=5, font=('Lucid', 12))
 
-        self.button_make_plot = Button(self.frame_entry, text="Make plot", width=10, command=self.make_plot)
+        self.button_make_plot = Button(self.frame_entry, text="Drukuj wykresy", width=15, command=self.make_plot)
 
         self.label_sampling_time = Label(self.frame_entry, width=25, text="Czas próbkowania:")
         self.label_sampling_freq = Label(self.frame_entry, width=25, text="Częstotliwość próbkowania:")
@@ -131,6 +134,49 @@ class GUI:
 
         self.publish()
 
+    def create_menubar(self):
+        self.menubar = Menu(self.root)
+
+        self.filemenu = Menu(self.menubar, tearoff=0)
+        self.filemenu_print = Menu(self.filemenu, tearoff=0)
+        self.filemenu_print.add_command(label="Png", command=self.create_png_exports)
+
+        self.filemenu_print.add_command(label="Txt", command=self.create_txt_exports)
+        self.filemenu.add_cascade(label='Wydruk', menu=self.filemenu_print)
+
+        self.menubar.add_cascade(label="Plik", menu=self.filemenu)
+
+        self.filemenu.add_separator()
+        self.filemenu.add_command(label="Wyjście", command=self.root.quit)
+
+    def create_png_exports(self):
+        if self.is_plot_printed:
+            self.fig_position.savefig("x(t).png")
+            self.fig_acceleration.savefig("a(t).png")
+            self.fig_velocity.savefig("v(t).png")
+        else:
+            print("Wydrukuj najpierw wykres!")
+
+    def create_txt_exports(self):
+        try:
+            list_txt_names = ['a(t).txt', 'v(t).txt', 'x(t).txt']
+            list_a = self.Main_Data.list_a
+            list_v = self.Main_Data.list_v
+            list_x = self.Main_Data.list_x
+            list_t = self.Main_Data.list_t
+
+            for index, name in enumerate(list_txt_names):
+                with open(name, 'w', encoding='utf-8') as f:
+                    for (item_a, item_t) in zip(list_a, list_t):
+                        f.write(str(f"{item_a}, {item_t}\n"))
+                if index == 0:
+                    list_a = list_v
+                elif index == 1:
+                    list_a = list_x
+        except AttributeError:
+            print("Wydrukuj najpierw wykres!")
+
+
     def make_plot(self):
         sampling_time = self.entry_sampling_time.get()
         sampling_freq = self.entry_sampling_freq.get()
@@ -139,10 +185,10 @@ class GUI:
         x0 = self.entry_x0.get()
         b = self.entry_b.get()
 
-        Main_Data = Data(sampling_time, sampling_freq, mass, sprint_constant, x0, b)
-        a, y = Main_Data.get_acceleration_plot_data()
-        v, y = Main_Data.get_velocity_plot_data()
-        x, y = Main_Data.get_position_plot_data()
+        self.Main_Data = Data(sampling_time, sampling_freq, mass, sprint_constant, x0, b)
+        a, y = self.Main_Data.get_acceleration_plot_data()
+        v, y = self.Main_Data.get_velocity_plot_data()
+        x, y = self.Main_Data.get_position_plot_data()
 
         """
         Acceleration canvas
@@ -183,6 +229,8 @@ class GUI:
         self.canvas_acceleration.draw()
         self.canvas_acceleration.get_tk_widget().grid(column=7, row=1, columnspan=3, padx=10, pady=10)
 
+        self.is_plot_printed = True
+
     def publish(self):
         self.frame_entry.grid(column=1, row=1, padx=5, pady=5)
         self.frame_plots.grid(column=1, row=2, padx=5, pady=5)
@@ -206,6 +254,7 @@ class GUI:
         self.canvas_acceleration.get_tk_widget().grid(column=1, row=1, columnspan=3, padx=10, pady=10)
         self.canvas_velocity.get_tk_widget().grid(column=4, row=1, columnspan=3, padx=10, pady=10)
         self.canvas_position.get_tk_widget().grid(column=7, row=1, columnspan=3, padx=10, pady=10)
+
 
 if __name__ == "__main__":
     Main_GUI = GUI()
